@@ -205,13 +205,22 @@ function openTopic(gradeId, topicId) {
   window.scrollTo({ top: 0 });
 }
 
-function renderInput(type, qattrs, options) {
+function numPlaceholder(q) {
+  if (q && typeof q.answer === "number" && Number.isInteger(q.answer) && (q.tol == null || q.tol < 1)) {
+    return "Hele tall";
+  }
+  return "Tall (komma for desimal)";
+}
+
+function renderInput(type, qattrs, options, q) {
   if (type === "mc") {
     return `<div class="quiz-options">` + options.map((opt, i) =>
       `<label data-idx="${i}"><input type="radio" ${qattrs} value="${i}" /> <span>${opt}</span></label>`
     ).join("") + `</div>`;
   } else if (type === "num") {
-    return `<input class="quiz-input" type="text" inputmode="decimal" ${qattrs} placeholder="Tall (komma)" />`;
+    const isInt = q && typeof q.answer === "number" && Number.isInteger(q.answer) && (q.tol == null || q.tol < 1);
+    const inputMode = isInt ? "numeric" : "decimal";
+    return `<input class="quiz-input" type="text" inputmode="${inputMode}" ${qattrs} placeholder="${numPlaceholder(q)}" />`;
   }
   return `<input class="quiz-input" type="text" ${qattrs} placeholder="Svar" style="width:240px" />`;
 }
@@ -227,7 +236,7 @@ function renderQuestion(q, idx) {
       const qattrs = p.type === "mc"
         ? `name="q${idx}p${pi}"`
         : `data-q="${idx}" data-pi="${pi}"`;
-      const input = renderInput(p.type, qattrs, p.options || []);
+      const input = renderInput(p.type, qattrs, p.options || [], p);
       return `<div class="subpart" data-pi="${pi}">
         <div class="sp-q"><span class="sp-label">${subLabel(pi)})</span>${p.q}</div>
         ${input}
@@ -242,7 +251,7 @@ function renderQuestion(q, idx) {
     </div>`;
   }
   const qattrs = q.type === "mc" ? `name="q${idx}"` : `data-q="${idx}"`;
-  const body = renderInput(q.type, qattrs, q.options || []);
+  const body = renderInput(q.type, qattrs, q.options || [], q);
   return `<div class="quiz-q" data-idx="${idx}">
     <div class="qtext">${idx + 1}. ${q.q}</div>
     ${body}
@@ -689,7 +698,7 @@ function renderRetrievalQuiz(picks, settings) {
     if (q.type === "multi") {
       const partsHtml = q.parts.map((p, pi) => {
         const qattrs = p.type === "mc" ? `name="rq${idx}p${pi}"` : `data-q="${idx}" data-pi="${pi}"`;
-        const input = renderInput(p.type, qattrs, p.options || []);
+        const input = renderInput(p.type, qattrs, p.options || [], p);
         return `<div class="subpart" data-pi="${pi}">
           <div class="sp-q"><span class="sp-label">${subLabel(pi)})</span>${p.q}</div>
           ${input}
@@ -699,7 +708,7 @@ function renderRetrievalQuiz(picks, settings) {
       body = `<div class="subparts">${partsHtml}</div>`;
     } else {
       const qattrs = q.type === "mc" ? `name="rq${idx}"` : `data-q="${idx}"`;
-      body = renderInput(q.type, qattrs, q.options || []);
+      body = renderInput(q.type, qattrs, q.options || [], q);
     }
     return `<div class="quiz-q" data-idx="${idx}" ${q.type==="multi"?'data-multi="1"':''}>
       <div class="qtext">${idx + 1}. ${q.q}</div>
