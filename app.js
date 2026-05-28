@@ -133,39 +133,29 @@ function openTopic(gradeId, topicId) {
   const topic = grade.topics.find(t => t.id === topicId);
   const root = document.getElementById("content");
 
-  const fullHtml = topic.sections.map(s => `<h3>${s.heading}</h3>${s.html}`).join("");
-  const simpleHtml = topic.simpleHtml ? `<div class="theory-simple">${topic.simpleHtml}</div>` : "";
-  const deeperHtml = topic.deeperHtml ? `<div class="theory-deeper"><span class="label">Ekstra detalj</span>${topic.deeperHtml}</div>` : "";
-  const hasSimple = !!topic.simpleHtml;
-  const hasDeeper = !!topic.deeperHtml;
-  const togglerHtml = (hasSimple || hasDeeper) ? `
-    <div class="theory-mode-label">Forklaringsnivå</div>
-    <div class="theory-toggle" id="theory-toggle">
-      ${hasSimple ? `<button data-mode="simple">Enkel</button>` : ""}
-      <button data-mode="full" class="active">Full</button>
-      ${hasDeeper ? `<button data-mode="deeper">Med ekstra detalj</button>` : ""}
-    </div>` : "";
-  const sectionsHtml = `${togglerHtml}<div id="theory-body">${fullHtml}</div>`;
-  const quizHtml = topic.quiz.map((q, i) => renderQuestion(q, i)).join("");
-
   const ts = topicScore(topic.id);
+  const topRefs = buildTopReferences(topic);
+  const bottomRefs = buildBottomReferences(topic);
+  const flowHtml = buildInterleavedFlow(topic);
 
   root.innerHTML = `
     <button class="nav-back">← Tilbake til ${grade.name}</button>
     <div class="topic-page">
       <h2>${topic.title}</h2>
       <p style="color:var(--ink-soft)">${topic.summary}</p>
-      ${sectionsHtml}
 
-      <div class="quiz">
-        <h3>Oppgaver</h3>
-        <p style="color:var(--ink-soft);font-size:13px;">Trykk <b>Sjekk svar</b> under hver oppgave for å få tilbakemelding underveis. Du må ha minst 80&nbsp;% poeng for å fullføre emnet.</p>
-        <form id="quiz-form">${quizHtml}</form>
-        <div class="quiz-actions">
-          <button class="btn primary" id="btn-check-all">Sjekk alle ubesvarte</button>
-          <button class="btn ghost" id="btn-clear">Tøm og start på nytt</button>
-          <span class="quiz-score ${ts.completed ? "passed" : ""}" id="quiz-score">${ts.best > 0 ? `Beste: ${ts.best}/${topicMaxPoints(topic)} poeng` : ""}</span>
-        </div>
+      ${topRefs}
+
+      <p style="color:var(--ink-soft);font-size:13px;margin:18px 0 0;">📚 Les teksten i hver del og prøv oppgavene under før du går videre. Trykk <b>Sjekk svar</b> for å se om du har gjort det riktig.</p>
+
+      <form id="quiz-form">${flowHtml}</form>
+
+      ${bottomRefs}
+
+      <div class="quiz-actions">
+        <button class="btn primary" id="btn-check-all">Sjekk alle ubesvarte</button>
+        <button class="btn ghost" id="btn-clear">Tøm og start på nytt</button>
+        <span class="quiz-score ${ts.completed ? "passed" : ""}" id="quiz-score">${ts.best > 0 ? `Beste: ${ts.best}/${topicMaxPoints(topic)} poeng` : ""}</span>
       </div>
 
       <div class="topic-nav">
@@ -176,22 +166,6 @@ function openTopic(gradeId, topicId) {
   `;
 
   root.querySelector(".nav-back").addEventListener("click", () => openGrade(gradeId));
-
-  const tt = document.getElementById("theory-toggle");
-  const tb = document.getElementById("theory-body");
-  if (tt && tb) {
-    tt.querySelectorAll("button[data-mode]").forEach(btn => {
-      btn.addEventListener("click", e => {
-        e.preventDefault();
-        tt.querySelectorAll("button").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        const mode = btn.dataset.mode;
-        if (mode === "simple") tb.innerHTML = simpleHtml;
-        else if (mode === "deeper") tb.innerHTML = fullHtml + deeperHtml;
-        else tb.innerHTML = fullHtml;
-      });
-    });
-  }
 
   const sessionState = { byQuestion: new Map() };
   topic.quiz.forEach((q, idx) => {
@@ -395,6 +369,126 @@ function checkAllQuestions(topic, sessionState) {
 
 function topicMaxPoints(topic) {
   return topic.quiz.reduce((s, q) => s + (q.type === "multi" ? q.parts.length : 1), 0);
+}
+
+function renderWorkedExample(e) {
+  const steps = e.steps.map((s, i) => {
+    const work = s.work ? `<div class="we-work">${s.work}</div>` : "";
+    return `<div class="we-step"><span class="we-num">${i + 1}</span><div class="we-text">${s.text}${work}</div></div>`;
+  }).join("");
+  return `<div class="worked-example">
+    <div class="we-title">🧮 ${e.title}</div>
+    <div class="we-steps">${steps}</div>
+  </div>`;
+}
+
+function splitArr(arr, n) {
+  if (n <= 0) return [arr];
+  const out = [];
+  const base = Math.floor(arr.length / n);
+  let extra = arr.length - base * n;
+  let i = 0;
+  for (let k = 0; k < n; k++) {
+    const size = base + (extra > 0 ? 1 : 0);
+    if (extra > 0) extra--;
+    out.push(arr.slice(i, i + size));
+    i += size;
+  }
+  return out;
+}
+
+function buildTopReferences(topic) {
+  // Symboler og fremgangsmåter vises som åpne reference-bokser ØVERST.
+  // Enkel/dypere oppsummering blir collapsible.
+  const L = topic.lessons;
+  let html = "";
+
+  if (topic.simpleHtml) {
+    html += `<details class="lesson-block">
+      <summary><span class="lesson-icon">🌟</span>Enkel oppsummering av hele emnet</summary>
+      <div class="body"><div class="theory-simple">${topic.simpleHtml}</div></div>
+    </details>`;
+  }
+
+  if (L && L.symbols && L.symbols.length) {
+    const rows = L.symbols.map(s =>
+      `<tr><td class="sym">${s.symbol}</td><td><b>${s.name}</b><br/><span style="color:var(--ink-soft)">${s.meaning}</span></td><td class="ex">${s.example || ""}</td></tr>`
+    ).join("");
+    html += `<details class="lesson-block" open>
+      <summary><span class="lesson-icon">🔤</span>Symboler du møter her</summary>
+      <div class="body"><table class="symbol-table">
+        <thead><tr><th>Symbol</th><th>Hva det heter / betyr</th><th>Eksempel</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </details>`;
+  }
+
+  if (L && L.procedures && L.procedures.length) {
+    const blocks = L.procedures.map(p => {
+      const steps = p.steps.map(s => `<li>${s}</li>`).join("");
+      const recipe = p.recipeExample ? `<div class="recipe-example"><b>Eksempel på oppskrift:</b> ${p.recipeExample}</div>` : "";
+      return `<div class="procedure"><h4>📝 ${p.name}</h4><ol>${steps}</ol>${recipe}</div>`;
+    }).join("");
+    html += `<details class="lesson-block" open>
+      <summary><span class="lesson-icon">📝</span>Slik gjør du - fremgangsmåte</summary>
+      <div class="body">${blocks}</div>
+    </details>`;
+  }
+
+  return html;
+}
+
+function buildBottomReferences(topic) {
+  let html = "";
+  if (topic.deeperHtml) {
+    html += `<details class="lesson-block">
+      <summary><span class="lesson-icon">✨</span>Ekstra detalj - dypere forklaring</summary>
+      <div class="body"><div class="theory-deeper">${topic.deeperHtml}</div></div>
+    </details>`;
+  }
+  return html;
+}
+
+function buildInterleavedFlow(topic) {
+  const sections = topic.sections || [];
+  const examples = (topic.lessons && topic.lessons.examples) || [];
+  const N = Math.max(sections.length, 1);
+  const exChunks = splitArr(examples, N);
+  const qChunks = splitArr(topic.quiz, N);
+
+  let html = "";
+  let qIdx = 0;
+  sections.forEach((s, i) => {
+    const exHtml = (exChunks[i] || []).map(renderWorkedExample).join("");
+    const chunk = qChunks[i] || [];
+    let quizHtml = "";
+    if (chunk.length > 0) {
+      const startNum = qIdx + 1;
+      const endNum = qIdx + chunk.length;
+      const qsHtml = chunk.map(q => renderQuestion(q, qIdx++)).join("");
+      quizHtml = `<div class="flow-quiz">
+        <div class="flow-quiz-header">
+          <h4>📝 Prøv selv</h4>
+          <span class="quiz-count">Oppgave ${startNum}${startNum === endNum ? "" : `–${endNum}`}</span>
+        </div>
+        ${qsHtml}
+      </div>`;
+    }
+    html += `<div class="flow-section">
+      <span class="flow-num">${i + 1}</span>
+      <h3>${s.heading}</h3>
+      ${s.html}
+      ${exHtml}
+      ${quizHtml}
+    </div>`;
+  });
+
+  // Hvis det er flere oppgaver enn vi har fordelt (skulle ikke skje pga splitArr), legg dem til som restbolk
+  if (qIdx < topic.quiz.length) {
+    const rest = topic.quiz.slice(qIdx).map(q => renderQuestion(q, qIdx++)).join("");
+    html += `<div class="flow-section"><h3>Blandet repetisjon</h3>${rest}</div>`;
+  }
+  return html;
 }
 
 function prevTopicButton(gradeId, topicId) {
@@ -936,6 +1030,22 @@ function buildPrintView(cfg) {
           }
           if (h.trim()) parts.push(h);
         });
+        if (topic.lessons) {
+          const L = topic.lessons;
+          if (cfg.showTheory && L.symbols && L.symbols.length) {
+            parts.push(`<h4 class="print-section">Symboler</h4><table class="symbol-table">` +
+              L.symbols.map(s => `<tr><td class="sym">${s.symbol}</td><td><b>${s.name}</b> - ${s.meaning} ${s.example ? `<i>(${s.example})</i>` : ""}</td></tr>`).join("") +
+              `</table>`);
+          }
+          if (cfg.showTheory && L.procedures && L.procedures.length) {
+            parts.push(`<h4 class="print-section">Slik gjør du</h4>` +
+              L.procedures.map(p => `<div class="procedure"><b>${p.name}</b><ol>${p.steps.map(s => `<li>${s}</li>`).join("")}</ol>${p.recipeExample ? `<div><i>${p.recipeExample}</i></div>` : ""}</div>`).join(""));
+          }
+          if (cfg.showExamples && L.examples && L.examples.length) {
+            parts.push(`<h4 class="print-section">Eksempler steg for steg</h4>` +
+              L.examples.map(e => `<div class="worked-example"><b>${e.title}</b><ol>${e.steps.map(s => `<li>${s.text}${s.work ? ` <code>${s.work}</code>` : ""}</li>`).join("")}</ol></div>`).join(""));
+          }
+        }
       }
       if (cfg.showExercises) {
         parts.push(`<div class="print-quiz"><b>Oppgaver</b><ol>`);
