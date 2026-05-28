@@ -27,7 +27,12 @@ a { color: var(--accent); }
   padding: 14px 24px; background: var(--panel); border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 10;
 }
-.brand { display: flex; align-items: center; gap: 14px; }
+.brand {
+  display: flex; align-items: center; gap: 14px;
+  background: transparent; border: none; padding: 4px 6px; border-radius: 8px;
+  cursor: pointer; text-align: left; color: inherit; font-family: inherit;
+}
+.brand:hover { background: var(--accent-soft); }
 .brand h1 { font-size: 18px; margin: 0; }
 .brand p { font-size: 12px; margin: 0; color: var(--ink-soft); }
 .logo {

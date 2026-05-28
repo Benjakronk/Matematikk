@@ -81,6 +81,33 @@ function renderSidebar() {
   ring.style.background = `conic-gradient(var(--accent) ${pct * 3.6}deg, #cdd6ea 0deg)`;
 }
 
+/* -------------------- Forside -------------------- */
+
+function openWelcome() {
+  state.currentGrade = null;
+  state.currentTopic = null;
+  closePrintView();
+  const root = document.getElementById("content");
+  const overall = overallProgress();
+  const completedCount = Object.values(state.progress.topics || {}).filter(t => t.completed).length;
+  const totalTopics = CURRICULUM.grades.reduce((s, g) => s + g.topics.length, 0);
+
+  root.innerHTML = `
+    <section class="welcome">
+      <h2>Velkommen</h2>
+      <p>Velg et trinn til venstre for å begynne. Hvert trinn har emner med grundig forklaring, eksempler og oppgaver. Når du gjør oppgavene riktig, fylles framgangsringen.</p>
+      <ul class="feature-grid">
+        <li><strong>Total framgang</strong><br />${overall}% gjennomført.</li>
+        <li><strong>Fullførte emner</strong><br />${completedCount} av ${totalTopics}.</li>
+        <li><strong>🧠 Repetisjon</strong><br />Tren på blandede oppgaver fra emnene du har gjort.</li>
+        <li><strong>🖨 Skriv ut</strong><br />Lag utskriftsvennlige leksjoner eller oppgavehefter.</li>
+      </ul>
+    </section>
+  `;
+  renderSidebar();
+  window.scrollTo({ top: 0 });
+}
+
 /* -------------------- Trinn-side -------------------- */
 
 function openGrade(gradeId) {
@@ -1459,6 +1486,8 @@ function showWorksheet(cfg) {
 
 document.addEventListener("DOMContentLoaded", () => {
   renderSidebar();
+  document.getElementById("btn-home").addEventListener("click", openWelcome);
+  document.getElementById("btn-home-side").addEventListener("click", openWelcome);
   document.getElementById("btn-print").addEventListener("click", openPrintView);
   document.getElementById("btn-worksheet").addEventListener("click", openWorksheet);
   document.getElementById("btn-retrieval").addEventListener("click", openRetrieval);
