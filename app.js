@@ -1199,7 +1199,13 @@ function showWorksheet(cfg) {
   body += `<div style="${colStyle}">` + items.map((it, idx) => qHtml(it, idx + 1)).join("") + `</div>`;
 
   if (cfg.answerKey) {
-    body += `<div class="ws-answer-key"><h2>Fasit</h2><ol>`;
+    body += `<div class="ws-cut-line"><span>✂  Riv her - fasit under</span></div>`;
+    body += `<div class="ws-answer-key">
+      <div class="ak-header">
+        <h2>Fasit - ${cfg.title}</h2>
+        <small>${items.length} oppgaver${cfg.seed ? " · seed: " + cfg.seed : ""} · ${new Date().toLocaleDateString("no-NO")}</small>
+      </div>
+      <ol>`;
     items.forEach(it => {
       body += `<li>${formatAnswer(it.q)}${it.q.explain ? ` <span style="color:#666;">- ${it.q.explain}</span>` : ""}</li>`;
     });
@@ -1209,8 +1215,10 @@ function showWorksheet(cfg) {
   host.innerHTML = `
     <div class="ws-toolbar">
       <h2 style="margin:0;font-size:16px;">Oppgavehefte (${items.length} oppgaver${cfg.answerKey?" + fasit":""})</h2>
-      <div style="display:flex;gap:8px;">
-        <button class="btn primary" id="ws-print">🖨 Skriv ut / lagre PDF</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn primary" id="ws-print">🖨 Alt</button>
+        ${cfg.answerKey ? `<button class="btn" id="ws-print-q">🖨 Bare oppgaver</button>
+        <button class="btn" id="ws-print-a">🖨 Bare fasit</button>` : ""}
         <button class="btn" id="ws-regen">🎲 Trekk på nytt</button>
         <button class="btn" id="ws-edit">← Endre valg</button>
         <button class="btn" id="ws-close">Lukk</button>
@@ -1219,7 +1227,17 @@ function showWorksheet(cfg) {
     <div class="ws-body">${body}</div>
   `;
 
-  document.getElementById("ws-print").addEventListener("click", () => window.print());
+  const printWith = (mode) => {
+    document.body.classList.remove("ws-print-questions", "ws-print-answers");
+    if (mode) document.body.classList.add(mode);
+    window.print();
+    setTimeout(() => document.body.classList.remove("ws-print-questions", "ws-print-answers"), 100);
+  };
+  document.getElementById("ws-print").addEventListener("click", () => printWith(null));
+  const qBtn = document.getElementById("ws-print-q");
+  const aBtn = document.getElementById("ws-print-a");
+  if (qBtn) qBtn.addEventListener("click", () => printWith("ws-print-questions"));
+  if (aBtn) aBtn.addEventListener("click", () => printWith("ws-print-answers"));
   document.getElementById("ws-regen").addEventListener("click", () => showWorksheet({ ...cfg, seed: "" }));
   document.getElementById("ws-edit").addEventListener("click", () => { closePrintView(); openWorksheet(); });
   document.getElementById("ws-close").addEventListener("click", closePrintView);

@@ -235,10 +235,28 @@ a { color: var(--accent); }
 .ws-q .subpart .sp-label { font-weight: 600; }
 .ws-q .subpart .answer-line, .ws-q .subpart .work-box { margin-left: 18px; }
 .ws-q .ws-fill-tag { font-size: 10px; color: #888; }
-.ws-answer-key { page-break-before: always; }
-.ws-answer-key h2 { margin-top: 0; border-bottom: 2px solid #000; padding-bottom: 4px; }
+.ws-cut-line {
+  margin: 40px 0 14px; border-top: 2px dashed #888; position: relative; text-align: center;
+}
+.ws-cut-line span {
+  background: white; padding: 0 10px; font-size: 11px; color: #888;
+  position: relative; top: -10px; letter-spacing: .1em; text-transform: uppercase;
+}
+.ws-answer-key { page-break-before: always; break-before: page; }
+.ws-answer-key .ak-header { border-bottom: 2px solid #000; padding-bottom: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: baseline; }
+.ws-answer-key .ak-header h2 { margin: 0; font-size: 20px; }
+.ws-answer-key .ak-header small { color: #555; font-size: 11px; }
 .ws-answer-key ol { padding-left: 26px; }
-.ws-answer-key li { margin: 4px 0; }
+.ws-answer-key li { margin: 6px 0; }
+
+/* Utskriftsmodus: print kun ett av delene */
+body.ws-print-questions .ws-answer-key, body.ws-print-questions .ws-cut-line { display: none !important; }
+body.ws-print-answers .ws-cut-line { display: none !important; }
+body.ws-print-answers .ws-header,
+body.ws-print-answers .ws-meta-line,
+body.ws-print-answers .ws-section-title,
+body.ws-print-answers .ws-q { display: none !important; }
+body.ws-print-answers .ws-answer-key { page-break-before: avoid; break-before: avoid; }
 .ws-fill-tag { font-size: 11px; color: var(--ink-soft); }
 
 @media print {
