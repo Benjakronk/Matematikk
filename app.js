@@ -133,7 +133,19 @@ function openTopic(gradeId, topicId) {
   const topic = grade.topics.find(t => t.id === topicId);
   const root = document.getElementById("content");
 
-  const sectionsHtml = topic.sections.map(s => `<h3>${s.heading}</h3>${s.html}`).join("");
+  const fullHtml = topic.sections.map(s => `<h3>${s.heading}</h3>${s.html}`).join("");
+  const simpleHtml = topic.simpleHtml ? `<div class="theory-simple">${topic.simpleHtml}</div>` : "";
+  const deeperHtml = topic.deeperHtml ? `<div class="theory-deeper"><span class="label">Ekstra detalj</span>${topic.deeperHtml}</div>` : "";
+  const hasSimple = !!topic.simpleHtml;
+  const hasDeeper = !!topic.deeperHtml;
+  const togglerHtml = (hasSimple || hasDeeper) ? `
+    <div class="theory-mode-label">Forklaringsnivå</div>
+    <div class="theory-toggle" id="theory-toggle">
+      ${hasSimple ? `<button data-mode="simple">Enkel</button>` : ""}
+      <button data-mode="full" class="active">Full</button>
+      ${hasDeeper ? `<button data-mode="deeper">Med ekstra detalj</button>` : ""}
+    </div>` : "";
+  const sectionsHtml = `${togglerHtml}<div id="theory-body">${fullHtml}</div>`;
   const quizHtml = topic.quiz.map((q, i) => renderQuestion(q, i)).join("");
 
   const ts = topicScore(topic.id);
@@ -147,12 +159,12 @@ function openTopic(gradeId, topicId) {
 
       <div class="quiz">
         <h3>Oppgaver</h3>
-        <p style="color:var(--ink-soft);font-size:13px;">Svar på oppgavene under og trykk <b>Sjekk svar</b>. Du må ha minst ${Math.ceil(topic.quiz.length * PASS_THRESHOLD)} av ${topic.quiz.length} riktige for å fullføre emnet.</p>
+        <p style="color:var(--ink-soft);font-size:13px;">Trykk <b>Sjekk svar</b> under hver oppgave for å få tilbakemelding underveis. Du må ha minst 80&nbsp;% poeng for å fullføre emnet.</p>
         <form id="quiz-form">${quizHtml}</form>
         <div class="quiz-actions">
-          <button class="btn primary" id="btn-check">Sjekk svar</button>
-          <button class="btn ghost" id="btn-clear">Tøm</button>
-          <span class="quiz-score ${ts.completed ? "passed" : ""}" id="quiz-score">${ts.best > 0 ? `Beste: ${ts.best}/${topic.quiz.length}` : ""}</span>
+          <button class="btn primary" id="btn-check-all">Sjekk alle ubesvarte</button>
+          <button class="btn ghost" id="btn-clear">Tøm og start på nytt</button>
+          <span class="quiz-score ${ts.completed ? "passed" : ""}" id="quiz-score">${ts.best > 0 ? `Beste: ${ts.best}/${topicMaxPoints(topic)} poeng` : ""}</span>
         </div>
       </div>
 
@@ -164,7 +176,29 @@ function openTopic(gradeId, topicId) {
   `;
 
   root.querySelector(".nav-back").addEventListener("click", () => openGrade(gradeId));
-  document.getElementById("btn-check").addEventListener("click", (e) => { e.preventDefault(); checkQuiz(topic); });
+
+  const tt = document.getElementById("theory-toggle");
+  const tb = document.getElementById("theory-body");
+  if (tt && tb) {
+    tt.querySelectorAll("button[data-mode]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.preventDefault();
+        tt.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const mode = btn.dataset.mode;
+        if (mode === "simple") tb.innerHTML = simpleHtml;
+        else if (mode === "deeper") tb.innerHTML = fullHtml + deeperHtml;
+        else tb.innerHTML = fullHtml;
+      });
+    });
+  }
+
+  const sessionState = { byQuestion: new Map() };
+  topic.quiz.forEach((q, idx) => {
+    const btn = document.getElementById(`check-${idx}`);
+    if (btn) btn.addEventListener("click", (e) => { e.preventDefault(); checkSingleQuestion(topic, idx, sessionState); });
+  });
+  document.getElementById("btn-check-all").addEventListener("click", (e) => { e.preventDefault(); checkAllQuestions(topic, sessionState); });
   document.getElementById("btn-clear").addEventListener("click", (e) => { e.preventDefault(); openTopic(gradeId, topicId); });
   wireNavButtons(gradeId, topicId);
 
@@ -185,6 +219,9 @@ function renderInput(type, qattrs, options) {
 const subLabel = (i) => String.fromCharCode(97 + i); // a, b, c, d ...
 
 function renderQuestion(q, idx) {
+  const actions = `<div class="q-actions">
+    <button class="btn btn-check-one" id="check-${idx}">Sjekk svar</button>
+  </div>`;
   if (q.type === "multi") {
     const partsHtml = q.parts.map((p, pi) => {
       const qattrs = p.type === "mc"
@@ -200,6 +237,7 @@ function renderQuestion(q, idx) {
     return `<div class="quiz-q" data-idx="${idx}" data-multi="1">
       <div class="qtext">${idx + 1}. ${q.q}</div>
       <div class="subparts">${partsHtml}</div>
+      ${actions}
       <div class="quiz-feedback" id="fb-${idx}"></div>
     </div>`;
   }
@@ -208,6 +246,7 @@ function renderQuestion(q, idx) {
   return `<div class="quiz-q" data-idx="${idx}">
     <div class="qtext">${idx + 1}. ${q.q}</div>
     ${body}
+    ${actions}
     <div class="quiz-feedback" id="fb-${idx}"></div>
   </div>`;
 }
@@ -282,41 +321,67 @@ function gradeQuestion(q, card, idxPrefix) {
   return { isCorrect: r.ok, ok: r.ok ? 1 : 0, total: 1, correctText: r.correctText };
 }
 
-function checkQuiz(topic) {
-  let correctPts = 0, totalPts = 0;
-  topic.quiz.forEach((q, idx) => {
-    const fb = document.getElementById(`fb-${idx}`);
-    const card = document.querySelector(`.quiz-q[data-idx="${idx}"]`);
-    const r = gradeQuestion(q, card, `q${idx}`);
-    correctPts += r.ok; totalPts += r.total;
+function checkSingleQuestion(topic, idx, sessionState) {
+  const q = topic.quiz[idx];
+  const card = document.querySelector(`.quiz-q[data-idx="${idx}"]`);
+  const fb = document.getElementById(`fb-${idx}`);
+  const r = gradeQuestion(q, card, `q${idx}`);
+  sessionState.byQuestion.set(idx, { points: r.ok, total: r.total });
 
-    if (q.type === "multi") {
-      if (r.isCorrect) {
-        fb.className = "quiz-feedback ok";
-        fb.innerHTML = `✓ Alle ${r.total} deloppgaver riktige.`;
-      } else {
-        fb.className = "quiz-feedback no";
-        fb.innerHTML = `${r.ok} av ${r.total} deloppgaver riktige.`;
-      }
-    } else if (r.isCorrect) {
-      fb.className = "quiz-feedback ok";
-      fb.innerHTML = `✓ Riktig. ${q.explain || ""}`;
-    } else {
-      fb.className = "quiz-feedback no";
-      fb.innerHTML = `✗ ${r.correctText} ${q.explain || ""}`;
-    }
-  });
-  const total = totalPts;
-  const ratio = total > 0 ? correctPts / total : 0;
+  card.classList.remove("graded-ok","graded-no","graded-partial");
+  card.classList.add("graded");
+  if (r.isCorrect) card.classList.add("graded-ok");
+  else if (r.ok > 0) card.classList.add("graded-partial");
+  else card.classList.add("graded-no");
+
+  if (q.type === "multi") {
+    fb.className = r.isCorrect ? "quiz-feedback ok" : "quiz-feedback no";
+    fb.innerHTML = r.isCorrect
+      ? `✓ Alle ${r.total} deloppgaver riktige.`
+      : `${r.ok} av ${r.total} deloppgaver riktige.`;
+  } else if (r.isCorrect) {
+    fb.className = "quiz-feedback ok";
+    fb.innerHTML = `✓ Riktig. ${q.explain || ""}`;
+  } else {
+    fb.className = "quiz-feedback no";
+    fb.innerHTML = `✗ ${r.correctText} ${q.explain || ""}`;
+  }
+  updateSessionProgress(topic, sessionState);
+}
+
+function updateSessionProgress(topic, sessionState) {
+  let pts = 0, total = 0;
+  sessionState.byQuestion.forEach(v => { pts += v.points; total += v.total; });
+  const maxPts = topicMaxPoints(topic);
   const prev = state.progress.topics[topic.id] || { best: 0, completed: false };
-  const best = Math.max(prev.best || 0, correctPts);
-  const completed = prev.completed || ratio >= PASS_THRESHOLD;
-  state.progress.topics[topic.id] = { best, completed, lastScore: correctPts, total, updated: Date.now() };
+  const best = Math.max(prev.best || 0, pts);
+  const completed = prev.completed || (maxPts > 0 && pts / maxPts >= PASS_THRESHOLD);
+  state.progress.topics[topic.id] = {
+    best, completed,
+    lastScore: pts, total: maxPts,
+    updated: Date.now()
+  };
   saveProgress();
 
   const scoreEl = document.getElementById("quiz-score");
-  scoreEl.textContent = `Resultat: ${correctPts}/${total} poeng ${completed ? "(fullført!)" : ""}`;
-  scoreEl.className = "quiz-score" + (completed ? " passed" : "");
+  if (scoreEl) {
+    const checked = sessionState.byQuestion.size;
+    scoreEl.textContent = `Resultat: ${pts}/${maxPts} poeng · ${checked}/${topic.quiz.length} oppgaver sjekket${completed ? " · (fullført!)" : ""}`;
+    scoreEl.className = "quiz-score" + (completed ? " passed" : "");
+  }
+}
+
+function checkAllQuestions(topic, sessionState) {
+  topic.quiz.forEach((q, idx) => {
+    // Sjekk bare hvis det er svart noe (eller multi der noe er besvart)
+    const card = document.querySelector(`.quiz-q[data-idx="${idx}"]`);
+    const hasInput = card.querySelector("input:checked, input.quiz-input:not([value=''])");
+    const hasValue = Array.from(card.querySelectorAll("input.quiz-input")).some(i => i.value.trim() !== "");
+    const hasChecked = card.querySelector("input[type=radio]:checked");
+    if (hasValue || hasChecked || q.type === "multi") {
+      checkSingleQuestion(topic, idx, sessionState);
+    }
+  });
 }
 
 function topicMaxPoints(topic) {
@@ -981,11 +1046,11 @@ function openWorksheet() {
         </div>
         <div class="field">
           <label>Antall oppgaver per emne (0 = bruk totalt)</label>
-          <input type="number" id="ws-perTopic" min="0" max="50" value="${saved.perTopic}" />
+          <input type="number" id="ws-perTopic" min="0" max="500" value="${saved.perTopic}" />
         </div>
         <div class="field">
           <label>Totalt antall oppgaver (0 = ignorer)</label>
-          <input type="number" id="ws-total" min="0" max="200" value="${saved.total}" />
+          <input type="number" id="ws-total" min="0" max="2000" value="${saved.total}" />
         </div>
       </div>
 
@@ -1144,6 +1209,27 @@ function showWorksheet(cfg) {
   const items = pickWorksheetQuestions(cfg);
   if (items.length === 0) { alert("Ingen oppgaver matchet valgene."); return; }
 
+  // Sjekk om utvalget ble mindre enn ønsket
+  let notice = "";
+  if (cfg.perTopic > 0) {
+    const sel = new Set(cfg.selected);
+    let availPerTopic = 0;
+    CURRICULUM.grades.forEach(g => g.topics.forEach(t => {
+      if (!sel.has(t.id)) return;
+      const filtered = t.quiz.filter(q =>
+        (q.type === "mc" && cfg.includeMC) ||
+        (q.type === "num" && cfg.includeNum) ||
+        (q.type === "text" && cfg.includeText) ||
+        (q.type === "multi"));
+      availPerTopic += Math.min(filtered.length, cfg.perTopic);
+    }));
+    const totalCap = cfg.total > 0 ? Math.min(availPerTopic, cfg.total) : availPerTopic;
+    const requested = cfg.perTopic * cfg.selected.length;
+    if (totalCap < requested) {
+      notice = `Du ba om opptil ${cfg.perTopic} per emne (${requested} totalt), men oppgavebanken har bare ${totalCap} tilgjengelig for valgte emner og filtre. Velg flere emner eller skru på flere oppgavetyper for å få mer.`;
+    }
+  }
+
   let host = document.getElementById("worksheet-view");
   if (!host) {
     host = document.createElement("div");
@@ -1187,6 +1273,7 @@ function showWorksheet(cfg) {
   const colStyle = cfg.twoColumns ? "column-count: 2; column-gap: 18mm; column-rule: 1px solid #ddd;" : "";
 
   let body = "";
+  body += `<div class="ws-top">`;
   body += `<div class="ws-header">
     <div>
       <h1>${cfg.title}</h1>
@@ -1196,6 +1283,7 @@ function showWorksheet(cfg) {
   </div>`;
   body += `<div class="ws-meta-line">${meta.join("")}</div>`;
   body += `<div class="ws-section-title">Oppgaver</div>`;
+  body += `</div>`;
   body += `<div style="${colStyle}">` + items.map((it, idx) => qHtml(it, idx + 1)).join("") + `</div>`;
 
   if (cfg.answerKey) {
@@ -1214,7 +1302,10 @@ function showWorksheet(cfg) {
 
   host.innerHTML = `
     <div class="ws-toolbar">
-      <h2 style="margin:0;font-size:16px;">Oppgavehefte (${items.length} oppgaver${cfg.answerKey?" + fasit":""})</h2>
+      <div>
+        <h2 style="margin:0;font-size:16px;">Oppgavehefte (${items.length} oppgaver${cfg.answerKey?" + fasit":""})</h2>
+        ${notice ? `<div style="font-size:12px;color:var(--warn);margin-top:2px;">⚠ ${notice}</div>` : ""}
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn primary" id="ws-print">🖨 Alt</button>
         ${cfg.answerKey ? `<button class="btn" id="ws-print-q">🖨 Bare oppgaver</button>

@@ -139,20 +139,26 @@
     ],
 
     "g1-klokka": (rng) => {
+      const V = window.MathVisuals;
       const ord = ["ett","to","tre","fire","fem","seks","sju","åtte","ni","ti","elleve","tolv"];
       const out = [];
       for (let i = 0; i < 12; i++) {
         const h = pickInt(rng, 1, 12);
         const opts = shuffleWith(rng, [ord[h - 1], ord[(h) % 12], ord[(h - 2 + 12) % 12], "halv " + ord[h - 1]]);
-        out.push(qMC(`Lang viser på 12, kort på ${h}. Klokka er ...?`, opts, opts.indexOf(ord[h - 1]), `Når lang viser er på 12 er klokka hel.`));
+        const clock = V ? V.clockSVG(h, 0, 110) : "";
+        out.push(qMC(
+          `Se på klokka under. Den lange viseren peker rett opp på 12, og den korte viseren peker på ${h}. Hva er klokka?<br/>${clock}`,
+          opts, opts.indexOf(ord[h - 1]),
+          `Når lang viser er på 12 er klokka hel, og kort viser peker på timen (${h}).`
+        ));
       }
-      out.push(qMC("Lang viser peker på 12. Hva betyr det?", ["klokka er halv","klokka er kvart over","klokka er hel","klokka er kvart på"], 2, "Lang på 12 = hel."));
-      out.push(qMC("Hvilken viser er kortest?", ["minuttviseren","timeviseren","sekundviseren","alle like"], 1, "Timeviseren er kortest."));
-      out.push(qMC("Hvor mange tall står det på en klokke?", ["10","11","12","24"], 2, "12 tall."));
+      out.push(qMC("På klokka peker den lange viseren rett opp på 12. Hva betyr det?", ["klokka er halv","klokka er kvart over","klokka er hel","klokka er kvart på"], 2, "Lang på 12 = hel."));
+      out.push(qMC("Hvilken viser på klokka er kortest?", ["minuttviseren","timeviseren","sekundviseren","alle er like"], 1, "Timeviseren er kortest."));
+      out.push(qMC("Hvor mange tall står det på en analog klokke?", ["10","11","12","24"], 2, "12 tall."));
       out.push(qNum("Hvor mange timer er det i et halvt døgn?", 12, "12 timer."));
-      out.push(qNum("Hvor mange minutter er en hel time?", 60, "60 minutter."));
-      out.push(qNum("Hvor mange minutter er en halvtime?", 30, "Halvparten av 60."));
-      out.push(qNum("Hvor mange minutter er en kvart?", 15, "Fjerdedel av 60."));
+      out.push(qNum("Hvor mange minutter er det i én hel time?", 60, "60 minutter."));
+      out.push(qNum("Hvor mange minutter er det i en halvtime?", 30, "Halvparten av 60."));
+      out.push(qNum("Hvor mange minutter er det i en kvart (kvarter)?", 15, "Fjerdedel av 60."));
       return out;
     },
 
@@ -197,26 +203,75 @@
       return out;
     },
 
-    "g2-halv": (rng) => [
-      qMC("Lang viser på 6, kort mellom 4 og 5. Klokka er ...?", ["halv 4","halv 5","halv 6","kvart over 4"], 1, "Halv fem."),
-      qMC("Lang på 3, kort like etter 10. Klokka er?", ["kvart over 10","kvart på 11","halv 10","ti"], 0, "Kvart over 10."),
-      qMC("Lang på 9, kort like før 6. Klokka er?", ["kvart over 5","kvart på 6","halv 6","seks"], 1, "Kvart på 6."),
-      qMC("Lang på 6, kort mellom 8 og 9. Klokka er?", ["halv 8","halv 9","kvart over 8","ni"], 1, "Halv ni."),
-      qMC("Lang på 3 betyr ...?", ["kvart over","kvart på","halv","hel"], 0, "Kvart over."),
-      qMC("Lang på 9 betyr ...?", ["kvart over","kvart på","halv","hel"], 1, "Kvart på."),
-      qMC("Lang på 6 betyr ...?", ["kvart over","kvart på","halv","hel"], 2, "Halv."),
-      qMC("Lang på 12 betyr ...?", ["kvart over","kvart på","halv","hel"], 3, "Hel time."),
-      qNum("Hvor mange minutter er det fra hel time til kvart over?", 15, "15 minutter."),
-      qNum("Hvor mange minutter er det fra hel time til halv?", 30, "30 minutter."),
-      qNum("Hvor mange minutter er det fra kvart over til halv?", 15, "15 minutter."),
-      qNum("Hvor mange minutter er det fra halv til kvart på neste time?", 15, "15 minutter."),
-      qNum("Hvor mange minutter er det fra kvart på til hel time?", 15, "15 minutter."),
-      qNum("Hvor mange minutter er det fra hel time til neste hele time?", 60, "60 minutter."),
-      qMC("Lang viser flytter seg ett tall hvor mange minutter?", ["3","5","10","15"], 1, "5 minutter per tall."),
-      qMC("Lang viser peker på 4. Hvor mange minutter etter hel time?", ["15","20","25","40"], 1, "4 · 5 = 20 minutter."),
-      qMC("Lang viser peker på 7. Hvor mange minutter over?", ["25","30","35","40"], 2, "7 · 5 = 35 minutter."),
-      qMC("Lang viser på 10. Hvor mange minutter på neste hele?", ["10","15","20","50"], 0, "60 - 50 = 10."),
-    ],
+    "g2-halv": (rng) => {
+      const V = window.MathVisuals;
+      const ord = ["ett","to","tre","fire","fem","seks","sju","åtte","ni","ti","elleve","tolv"];
+      const clock = (h, m) => V ? V.clockSVG(h, m, 110) : "";
+      const out = [];
+
+      // Klokkeavlesning med bilde - halve timer
+      const halvCases = [[4,30,"halv 5"],[7,30,"halv 8"],[2,30,"halv 3"],[10,30,"halv 11"],[8,30,"halv 9"],[6,30,"halv 7"]];
+      halvCases.forEach(([h, m, ans]) => {
+        const opts = shuffleWith(rng, [ans, `halv ${h}`, `${ord[h-1]}`, `kvart over ${h}`]);
+        out.push(qMC(
+          `Klokkebilde: hvilket klokkeslett viser klokka under?<br/>${clock(h, m)}`,
+          opts, opts.indexOf(ans),
+          `Lang viser på 6 = halv. Kort viser er mellom ${h} og ${h+1}, så klokka er ${ans} (kort viser nesten på ${h+1}).`
+        ));
+      });
+
+      // Klokkeavlesning - kvart over
+      const kvOver = [[5,15,"kvart over 5"],[9,15,"kvart over 9"],[1,15,"kvart over 1"],[11,15,"kvart over 11"]];
+      kvOver.forEach(([h, m, ans]) => {
+        const opts = shuffleWith(rng, [ans, `kvart på ${h+1}`, `halv ${h+1}`, `${ord[h-1]}`]);
+        out.push(qMC(
+          `Klokkebilde: hva er klokka?<br/>${clock(h, m)}`,
+          opts, opts.indexOf(ans),
+          `Lang viser på 3 = kvart over. Kort viser like etter ${h}, så klokka er ${ans}.`
+        ));
+      });
+
+      // Klokkeavlesning - kvart på
+      const kvPaa = [[3,45,"kvart på 4"],[6,45,"kvart på 7"],[10,45,"kvart på 11"],[8,45,"kvart på 9"]];
+      kvPaa.forEach(([h, m, ans]) => {
+        const opts = shuffleWith(rng, [ans, `kvart over ${h}`, `halv ${h+1}`, `${ord[h]}`]);
+        out.push(qMC(
+          `Klokkebilde: hva er klokka?<br/>${clock(h, m)}`,
+          opts, opts.indexOf(ans),
+          `Lang viser på 9 = kvart på. Kort viser like før ${h+1}, så klokka er ${ans}.`
+        ));
+      });
+
+      // Konseptuelle spørsmål - litt mer beskrivende tekst
+      out.push(qMC(
+        `På en klokke peker den lange viseren på tallet 3. Hvor mange minutter er klokka over hel time?`,
+        ["10 minutter","15 minutter","20 minutter","30 minutter"], 1,
+        "Lang viser på 3 = 15 minutter over (3 · 5 = 15)."
+      ));
+      out.push(qMC(
+        `På en klokke peker den lange viseren på tallet 6. Hva sier vi at klokka er?`,
+        ["hel","kvart over","halv","kvart på"], 2,
+        "Lang viser på 6 = halv."
+      ));
+      out.push(qMC(
+        `På en klokke peker den lange viseren på tallet 9. Hvor mange minutter er det igjen til neste hele time?`,
+        ["5 minutter","10 minutter","15 minutter","20 minutter"], 2,
+        "Lang viser på 9 = 45 minutter over. Det er 15 minutter igjen til hel time."
+      ));
+      out.push(qMC(
+        `Den lange viseren på klokka flytter seg fra ett tall til neste. Hvor mange minutter har gått?`,
+        ["1 minutt","5 minutter","10 minutter","12 minutter"], 1,
+        "Ett tall = 5 minutter (60/12 = 5)."
+      ));
+
+      out.push(qNum("Hvor mange minutter er det fra hel time til kvart over?", 15));
+      out.push(qNum("Hvor mange minutter er det fra hel time til halv?", 30));
+      out.push(qNum("Hvor mange minutter er det fra kvart over til halv?", 15));
+      out.push(qNum("Hvor mange minutter er det fra halv til kvart på neste time?", 15));
+      out.push(qNum("Hvor mange minutter er det fra kvart på til hel time?", 15));
+      out.push(qNum("Hvor mange minutter er det fra en hel time til neste hele time?", 60));
+      return out;
+    },
 
     /* === 3. trinn === */
     "g3-gange": (rng) => [

@@ -208,8 +208,8 @@ const CURRICULUM = {
               html: `<p>Lang viser på 3 = <b>kvart over</b>. Lang viser på 9 = <b>kvart på</b>.</p>` },
           ],
           quiz: [
-            { type: "mc", q: "Lang viser på 6, kort viser mellom 7 og 8. Hva er klokka?", options: ["halv 7","halv 8","kvart over 7","kvart på 8"], answer: 1, explain: "Halv åtte - klokka 'mangler' en halv time på 8." },
-            { type: "mc", q: "Lang viser på 9, kort like før 4. Hva er klokka?", options: ["kvart over 3","kvart på 4","halv 4","tre"], answer: 1, explain: "Kvart på 4 - 15 minutter til 4." },
+            { type: "mc", q: `Klokkebilde: hva er klokka? Den lange viseren peker på 6, den korte er mellom 7 og 8.<br/>${(window.MathVisuals?window.MathVisuals.clockSVG(7,30,110):"")}`, options: ["halv 7","halv 8","kvart over 7","kvart på 8"], answer: 1, explain: "Halv åtte - klokka 'mangler' en halv time på 8." },
+            { type: "mc", q: `Klokkebilde: hva er klokka? Den lange viseren peker på 9, den korte like før 4.<br/>${(window.MathVisuals?window.MathVisuals.clockSVG(3,45,110):"")}`, options: ["kvart over 3","kvart på 4","halv 4","tre"], answer: 1, explain: "Kvart på 4 - 15 minutter til 4." },
           ]
         }
       ]
