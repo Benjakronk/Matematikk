@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="no">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Matematikk 1.–10. trinn</title>
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="icon.svg" alt="Matematikk-ikon" width="40" height="40" />
+      <div>
+        <h1>Matematikk</h1>
+        <p>Komplett kurs for 1.–10. trinn etter LK20</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button id="btn-print" class="btn ghost" title="Åpne en utskriftsvennlig versjon av leksjoner">🖨 Skriv ut</button>
+      <button id="btn-worksheet" class="btn ghost" title="Generer oppgavehefte for utskrift">📝 Oppgavehefte</button>
+      <button id="btn-export" class="btn ghost" title="Last ned sikkerhetskopi av framgangen din">⬇ Eksporter</button>
+      <label class="btn ghost" title="Last opp tidligere sikkerhetskopi">
+        ⬆ Importer
+        <input id="file-import" type="file" accept="application/json" hidden />
+      </label>
+      <button id="btn-reset" class="btn danger" title="Slett all lagret framgang">↺ Nullstill</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="progress-summary">
+        <div class="ring" id="overall-ring"><span id="overall-pct">0%</span></div>
+        <p>Total framgang</p>
+      </div>
+      <button id="btn-retrieval" class="btn primary" style="width:100%;justify-content:center;">🧠 Repetisjon</button>
+      <nav id="grade-nav" class="grade-nav"></nav>
+      <div class="sidebar-footer">
+        <p>Lagres automatisk i nettleseren din.</p>
+      </div>
+    </aside>
+
+    <main id="content" class="content">
+      <section class="welcome">
+        <h2>Velkommen</h2>
+        <p>Velg et trinn til venstre for å begynne. Hvert trinn har emner med grundig forklaring, eksempler og oppgaver. Når du gjør oppgavene riktig, fylles framgangsringen.</p>
+        <ul class="feature-grid">
+          <li><strong>Komplett</strong><br />Alle hovedområder i læreplanen 1.–10. trinn.</li>
+          <li><strong>Grundig</strong><br />Forklaringer, regneeksempler og oppgaver med løsninger.</li>
+          <li><strong>Personlig</strong><br />Framgangen lagres lokalt. Du kan eksportere og importere sikkerhetskopi.</li>
+          <li><strong>Statisk</strong><br />Ingen innlogging, ingen server. Åpne filen og start.</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <small>Bygget som statisk nettside. Innhold dekker hovedområdene tall, algebra, geometri, måling, statistikk og funksjoner.</small>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="quiz-extra.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

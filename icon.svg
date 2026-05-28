@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2d5bff"/>
+      <stop offset="1" stop-color="#6c8cff"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="12" fill="url(#g)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 16 H44 L28 32 L44 48 H16"/>
+  </g>
+  <circle cx="49" cy="49" r="6" fill="#ffd84d" stroke="#11203a" stroke-width="2"/>
+  <text x="49" y="52.5" text-anchor="middle" font-family="Georgia, serif" font-size="9" font-weight="700" fill="#11203a">π</text>
+</svg>
