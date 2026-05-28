@@ -175,7 +175,8 @@ a { color: var(--accent); }
 
 .topic-nav { display: flex; justify-content: space-between; margin-top: 28px; }
 
-.footer { text-align: center; padding: 14px; color: var(--ink-soft); font-size: 12px; }
+.footer { text-align: center; padding: 14px; color: var(--ink-soft); font-size: 12px; border-top: 1px solid var(--line); background: var(--panel); }
+.footer .copyright { margin-top: 4px; font-weight: 600; color: var(--ink); }
 
 /* ================== Repetisjon ================== */
 .retrieval-page { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
